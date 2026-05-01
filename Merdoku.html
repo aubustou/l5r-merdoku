@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merdoku — Relic & Ritual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+  :root {
+    --surface: #18120e;
+    --surface-dim: #18120e;
+    --surface-bright: #3f3833;
+    --surface-low: #211a16;
+    --surface-container: #251e1a;
+    --surface-high: #302924;
+    --surface-highest: #3b332f;
+    --on-surface: #ede0d9;
+    --on-surface-variant: #dfbfbc;
+    --outline: #a68a87;
+    --outline-variant: #58413f;
+    --primary: #ffb3ad;
+    --on-primary: #680109;
+    --primary-container: #8b1e1e;
+    --secondary: #adcfb3;
+    --tertiary: #eebd8e;
+    --tertiary-container: #63411c;
+    --bronze: #c9a84c;
+    --bronze-dim: #a07830;
+    --parchment: #e8dcc4;
+    --parchment-dim: #c9b89a;
+    --ink: #1a1008;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--surface);
+    color: var(--on-surface);
+    font-family: 'Newsreader', Georgia, serif;
+    overflow: hidden;
+  }
+
+  #root { height: 100%; }
+
+  /* Vignette overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.65) 100%);
+    z-index: 9999;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track {
+    background: var(--surface-low);
+    border-left: 1px solid var(--outline-variant);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--bronze), var(--bronze-dim));
+    border-radius: 2px;
+    border: 1px solid var(--outline-variant);
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--bronze); }
+
+  /* Noise texture overlay */
+  .noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-size: 128px 128px;
+    z-index: 1;
+  }
+
+  /* Wood grain background */
+  .wood-bg {
+    background-color: var(--surface);
+    background-image:
+      repeating-linear-gradient(
+        88deg,
+        transparent,
+        transparent 2px,
+        rgba(255,180,100,0.018) 2px,
+        rgba(255,180,100,0.018) 4px
+      ),
+      repeating-linear-gradient(
+        92deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.04) 3px,
+        rgba(0,0,0,0.04) 6px
+      );
+  }
+
+  /* Filigree corner clip */
+  .filigree-box {
+    position: relative;
+  }
+  .filigree-box::before, .filigree-box::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-color: var(--bronze-dim);
+    border-style: solid;
+    opacity: 0.7;
+  }
+  .filigree-box::before {
+    top: 0; left: 0;
+    border-width: 2px 0 0 2px;
+  }
+  .filigree-box::after {
+    bottom: 0; right: 0;
+    border-width: 0 2px 2px 0;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel">
+
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── Design tokens ───────────────────────────────────────────────────────────
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "layout": "gallery",
+  "cardDensity": "comfortable",
+  "showFlavor": true,
+  "accentColor": "#c9a84c",
+  "backgroundTexture": "wood"
+} /*EDITMODE-END*/;
+
+// ─── Clan color map ──────────────────────────────────────────────────────────
+
+const CLAN_COLORS = {
+  'Crab': { border: '#5b7fa6', glow: 'rgba(91,127,166,0.3)', symbol: '🦀' },
+  'Crane': { border: '#a8c8e8', glow: 'rgba(168,200,232,0.3)', symbol: '🕊' },
+  'Dragon': { border: '#6db88a', glow: 'rgba(109,184,138,0.3)', symbol: '🐉' },
+  'Lion': { border: '#e8c84a', glow: 'rgba(232,200,74,0.3)', symbol: '🦁' },
+  'Mantis': { border: '#d4a840', glow: 'rgba(212,168,64,0.3)', symbol: '⚡' },
+  'Phoenix': { border: '#e87840', glow: 'rgba(232,120,64,0.3)', symbol: '🔥' },
+  'Scorpion': { border: '#c84848', glow: 'rgba(200,72,72,0.3)', symbol: '🦂' },
+  'Unicorn': { border: '#b880d0', glow: 'rgba(184,128,208,0.3)', symbol: '🦄' },
+  'Shadowlands': { border: '#606060', glow: 'rgba(96,96,96,0.3)', symbol: '💀' },
+  'Naga': { border: '#78b878', glow: 'rgba(120,184,120,0.3)', symbol: '🐍' },
+  'Imperial': { border: '#d0a840', glow: 'rgba(208,168,64,0.3)', symbol: '👑' },
+  'default': { border: '#c9a84c', glow: 'rgba(201,168,76,0.3)', symbol: '⚔' }
+};
+
+function getClanStyle(clan) {
+  return CLAN_COLORS[clan] || CLAN_COLORS['default'];
+}
+
+// ─── Type badge ──────────────────────────────────────────────────────────────
+
+const TYPE_COLORS = {
+  'Personality': '#ffb3ad',
+  'Holding': '#adcfb3',
+  'Strategy': '#eebd8e',
+  'Spell': '#b8c8e8',
+  'Item': '#d4b888',
+  'Region': '#98c898',
+  'Stronghold': '#c9a84c',
+  'Event': '#d888b8'
+};
+
+// ─── Static sample deck (40 cards) ──────────────────────────────────────────
+// Classic Scorpion Clan deck — real L5R AEG-era cards
+
+const SAMPLE_DECK = [
+{ title: "Bayushi's Lies", clan: "Scorpion", type: "Stronghold", cost: 0, force: null, chi: null, ph: null, startinghonor: 6, keywords: "Scorpion", text: "Bow: Give a Personality you control +2F until end of turn. Once per game: Search your deck for a Spell and put it into your hand.", flavor: "Truth is the sharpest blade.", set: "Scorpion Clan Coup", rarity: "Fixed" },
+{ title: "Shosuro Furuyari", clan: "Scorpion", type: "Personality", cost: 3, force: 3, chi: 4, ph: 1, keywords: "Shinobi Spy", text: "Battle: Bow a target Personality in this battle with lower Chi than Furuyari's Chi. Furuyari is immune to Spells.", flavor: "He vanishes like smoke, and returns like fire.", set: "Gold Edition", rarity: "Rare" },
+{ title: "Bayushi Kachiko", clan: "Scorpion", type: "Personality", cost: 5, force: 2, chi: 7, ph: 2, keywords: "Imperial Favor", text: "Political: Discard a card from your hand to give a target Personality -3 Chi until end of turn. If that Personality's Chi reaches 0, bow it.", flavor: "A smile that cuts deeper than any blade.", set: "Scorpion Clan Coup", rarity: "Rare" },
+{ title: "Bayushi Tomaru", clan: "Scorpion", type: "Personality", cost: 4, force: 4, chi: 3, ph: 0, keywords: "Bushi Duelist", text: "Challenge: This duel is resolved as a Force duel instead of a Chi duel. If Tomaru wins a duel, straighten him.", flavor: "He challenges without courtesy and wins without mercy.", set: "Jade Edition", rarity: "Uncommon" },
+{ title: "Shosuro Hametsu", clan: "Scorpion", type: "Personality", cost: 2, force: 2, chi: 2, ph: 1, keywords: "Shinobi", text: "Open: Pay 2 Gold to search your deck for a Spell card and add it to your hand.", flavor: "Some knowledge should never leave the library.", set: "Diamond Edition", rarity: "Common" },
+{ title: "Bayushi Rikoji", clan: "Scorpion", type: "Personality", cost: 3, force: 2, chi: 4, ph: 1, keywords: "Courtier Magistrate", text: "Ceremony: Name a card. Your opponent reveals their hand; discard all copies of the named card.", flavor: "A name spoken is power surrendered.", set: "Lotus Edition", rarity: "Rare" },
+{ title: "Soshi Seryoku", clan: "Scorpion", type: "Personality", cost: 3, force: 1, chi: 5, ph: 2, keywords: "Shugenja Air", text: "Spell: Fire Spell: Give this Personality +2 Chi this turn. After, you may cast a second Spell this turn at half cost.", flavor: "The air carries whispers to those who know how to listen.", set: "Emerald Edition", rarity: "Uncommon" },
+{ title: "Soshi Yukio", clan: "Scorpion", type: "Personality", cost: 2, force: 1, chi: 4, ph: 1, keywords: "Shugenja Air Void", text: "Earth Spell: Sacrifice this Personality: Destroy a target Spell card in play.", flavor: "She carries the silence of graves.", set: "Shadowlands", rarity: "Rare" },
+{ title: "Bayushi Tangen", clan: "Scorpion", type: "Personality", cost: 4, force: 3, chi: 5, ph: 1, keywords: "Bushi Duelist Spy", text: "Battle: Challenge a target Personality. The loser of the duel is dishonored. If dishonored Personality has 0 personal honor, send it home bowed.", flavor: "He writes his duels in other men's blood.", set: "Gold Edition", rarity: "Rare" },
+{ title: "Shosuro Aroru", clan: "Scorpion", type: "Personality", cost: 2, force: 2, chi: 3, ph: 0, keywords: "Shinobi Ninja", text: "This Personality may move to battles as if it had Cavalry. Reaction: After a battle you win, draw a card.", flavor: "The shadow moves faster than the man it follows.", set: "Jade Edition", rarity: "Common" },
+{ title: "Scorpion's Sting", clan: "Scorpion", type: "Holding", cost: 2, force: null, chi: null, ph: null, keywords: "Dojo", text: "Bow: Give a Shinobi Personality you control +2 Force until end of battle. You may use this ability during other players' turns.", flavor: "Pain is the first lesson. Silence is the second.", set: "Gold Edition", rarity: "Uncommon" },
+{ title: "Shosuro Butei's Dojo", clan: "Scorpion", type: "Holding", cost: 3, force: null, chi: null, ph: null, keywords: "Dojo Shadowlands", text: "Bow: Search your deck for a Shinobi Personality with cost 3 or less and put it into play. That Personality comes into play bowed.", flavor: "The greatest assassins learn in the dark.", set: "Emerald Edition", rarity: "Rare" },
+{ title: "The Shadowed Tower", clan: "Scorpion", type: "Holding", cost: 4, force: null, chi: null, ph: null, keywords: "Castle Library", text: "Each of your Shugenja gains +1 Chi. Bow: Look at target opponent's hand.", flavor: "Every secret has a price. Knowledge of it costs more.", set: "Diamond Edition", rarity: "Rare" },
+{ title: "False Loyalties", clan: "Scorpion", type: "Holding", cost: 2, force: null, chi: null, ph: null, keywords: "Market", text: "Bow: Take control of target Personality with personal honor 0 until end of turn. Use this ability only during battle.", flavor: "Loyalty bought is loyalty owned.", set: "Lotus Edition", rarity: "Uncommon" },
+{ title: "Hidden Blade", clan: "Scorpion", type: "Item", cost: 1, force: null, chi: null, ph: null, keywords: "Weapon Knife", text: "Force +1. Bow attached Personality: Give a target Personality –1 Force until end of turn. This ability may only be used once per turn.", flavor: "The knife you do not see is the one that kills you.", set: "Gold Edition", rarity: "Common" },
+{ title: "Kolat Master's Cloak", clan: "Scorpion", type: "Item", cost: 2, force: null, chi: null, ph: null, keywords: "Armor Kolat", text: "Bow: Prevent all non-Ninja Personalities from targeting bearer until end of phase. Reaction: After bearer is challenged, cancel the duel.", flavor: "In the shadows, rank has no meaning.", set: "Jade Edition", rarity: "Rare" },
+{ title: "Mask of the Oni", clan: "Scorpion", type: "Item", cost: 3, force: null, chi: null, ph: null, keywords: "Mask Shadowlands", text: "Force +2, Chi –1. Bearer is immune to Fear effects. Bow: Give target Personality Fear 3 until end of turn.", flavor: "When you look into the mask, the mask looks back.", set: "Shadowlands", rarity: "Rare" },
+{ title: "Whispers of Shadow", clan: "Scorpion", type: "Spell", cost: 2, force: null, chi: null, ph: null, keywords: "Air Void Illusion", text: "Give a target Personality –3 Chi until end of turn. If their Chi drops to 0, bow them.", flavor: "Truth bends when the wind speaks falsely.", set: "Emerald Edition", rarity: "Uncommon" },
+{ title: "Mark of the Ninja", clan: "Scorpion", type: "Spell", cost: 1, force: null, chi: null, ph: null, keywords: "Air Void", text: "Give target Personality the Ninja keyword until end of turn. Ninja Personalities may not be targeted by non-Ninja abilities.", flavor: "Identity is the first disguise.", set: "Gold Edition", rarity: "Common" },
+{ title: "Sinister Satisfaction", clan: "Scorpion", type: "Spell", cost: 3, force: null, chi: null, ph: null, keywords: "Void Curse", text: "Give target Personality –2 Force and –2 Chi until end of turn. If that Personality is dishonored, destroy it instead.", flavor: "Shame is a slow blade.", set: "Diamond Edition", rarity: "Uncommon" },
+{ title: "Web of Lies", clan: "Scorpion", type: "Strategy", cost: 0, force: null, chi: null, ph: null, keywords: "Tactic", text: "Battle: Discard target Personality's attachment. Then dishonor that Personality.", flavor: "Strip away the armor. Strip away the name.", set: "Gold Edition", rarity: "Uncommon" },
+{ title: "Blackmail", clan: "Scorpion", type: "Strategy", cost: 1, force: null, chi: null, ph: null, keywords: "Political", text: "Political: Choose a Personality. Your opponent must discard a card from their hand or bow that Personality.", flavor: "Everyone has something to hide.", set: "Jade Edition", rarity: "Common" },
+{ title: "Sudden Movement", clan: "Scorpion", type: "Strategy", cost: 0, force: null, chi: null, ph: null, keywords: "Tactic Cavalry", text: "Battle: Move a Personality from your home into this battle. That Personality may act this turn.", flavor: "Strike before they count your shadows.", set: "Lotus Edition", rarity: "Common" },
+{ title: "The Price of Failure", clan: "Scorpion", type: "Strategy", cost: 2, force: null, chi: null, ph: null, keywords: "Honor Politics", text: "Discard a Personality you control: Lose 1 honor and give target opponent's Personality –3 Force until end of turn.", flavor: "Every pawn has a final use.", set: "Emerald Edition", rarity: "Uncommon" },
+{ title: "Cunning Maneuver", clan: "Scorpion", type: "Strategy", cost: 0, force: null, chi: null, ph: null, keywords: "Tactic", text: "Battle: Redirect a battle action targeting your Personality to another valid target.", flavor: "The battlefield is a stage, and the general a playwright.", set: "Diamond Edition", rarity: "Common" },
+{ title: "Cut the Threads", clan: "Scorpion", type: "Strategy", cost: 1, force: null, chi: null, ph: null, keywords: "Tactic", text: "Destroy target Follower in this battle. If no Follower is present, give target Personality –1 Force until end of battle.", flavor: "An army is only as strong as its weakest tie.", set: "Gold Edition", rarity: "Common" },
+{ title: "A Soldier's Lie", clan: "Scorpion", type: "Strategy", cost: 1, force: null, chi: null, ph: null, keywords: "Political Illusion", text: "Cancel the effects of a target Strategy card. Draw a card.", flavor: "The best lie is the one they want to believe.", set: "Jade Edition", rarity: "Uncommon" },
+{ title: "Poison Tongue", clan: "Scorpion", type: "Strategy", cost: 2, force: null, chi: null, ph: null, keywords: "Political Poison", text: "Dishonor target Personality. That Personality gets –2 Chi until they straighten.", flavor: "Words leave no marks that courts can see.", set: "Lotus Edition", rarity: "Common" },
+{ title: "Ruthless Tactics", clan: "Scorpion", type: "Strategy", cost: 1, force: null, chi: null, ph: null, keywords: "Tactic", text: "Battle: Give all your Personalities in this battle +1 Force this turn. Lose 1 honor.", flavor: "Victory without cost is victory without meaning.", set: "Emerald Edition", rarity: "Common" },
+{ title: "Enemy's Weakness", clan: "Scorpion", type: "Strategy", cost: 2, force: null, chi: null, ph: null, keywords: "Tactic Spy", text: "Look at target opponent's hand. Choose a card; they must discard it.", flavor: "Knowledge of weakness is the greatest weapon.", set: "Diamond Edition", rarity: "Uncommon" },
+{ title: "Silent Ambush", clan: "Scorpion", type: "Strategy", cost: 0, force: null, chi: null, ph: null, keywords: "Tactic Ninja", text: "Battle: Move a Ninja Personality from your home into this battle before battle resolution.", flavor: "They do not see us until it is too late.", set: "Gold Edition", rarity: "Common" },
+{ title: "Shosuro Shinobi", clan: "Scorpion", type: "Personality", cost: 2, force: 2, chi: 2, ph: 0, keywords: "Shinobi Ninja", text: "This Personality may not be targeted by enemy Personalities during battles unless they have the Ninja keyword.", flavor: "His name is an alias. His face is a mask.", set: "Jade Edition", rarity: "Common" },
+{ title: "Bayushi Gensato", clan: "Scorpion", type: "Personality", cost: 3, force: 3, chi: 3, ph: 1, keywords: "Bushi", text: "Battle: Bow: Give a target Personality you control +2 Force until end of battle.", flavor: "The blade serves, until the hand is cut.", set: "Emerald Edition", rarity: "Common" },
+{ title: "Bayushi Paneki", clan: "Scorpion", type: "Personality", cost: 6, force: 5, chi: 6, ph: 2, keywords: "Champion Bushi Duelist", text: "Forced Reaction: After Paneki enters play, your opponent loses 2 honor. Battle: Challenge a target Personality. Add +3 to Paneki's total in this duel.", flavor: "The clan champion need not whisper. His reputation speaks first.", set: "Gold Edition", rarity: "Rare" },
+{ title: "Soshi Kitaro", clan: "Scorpion", type: "Personality", cost: 3, force: 2, chi: 4, ph: 1, keywords: "Shugenja Air", text: "Air Spell: Discard a card from your hand: Draw two cards.", flavor: "Knowledge is the water that fills the cup of power.", set: "Diamond Edition", rarity: "Uncommon" },
+{ title: "Bayushi Yojiro", clan: "Scorpion", type: "Personality", cost: 4, force: 2, chi: 6, ph: 3, keywords: "Magistrate Courtier Spy", text: "Political: Name a card. Your opponent reveals their hand. Discard all copies of the named card. Gain 1 honor.", flavor: "He is the only honest Scorpion, and therefore the most dangerous.", set: "Jade Edition", rarity: "Rare" },
+{ title: "A Shaded Garden", clan: "Scorpion", type: "Holding", cost: 2, force: null, chi: null, ph: null, keywords: "Garden", text: "Bow: Gain 1 honor. Bow: Give target Personality +1 Chi until end of turn.", flavor: "Even scorpions need beauty.", set: "Lotus Edition", rarity: "Common" },
+{ title: "The Path of Whispers", clan: "Scorpion", type: "Region", cost: 3, force: null, chi: null, ph: null, keywords: "Region", text: "Each Shinobi Personality you control may move as if they had Cavalry. Once per turn, bow this Region: Reveal the top card of target opponent's deck.", flavor: "All roads lead somewhere. Most lead here first.", set: "Emerald Edition", rarity: "Rare" },
+{ title: "Night Raid", clan: "Scorpion", type: "Strategy", cost: 0, force: null, chi: null, ph: null, keywords: "Tactic Ninja", text: "Battle: Bow target Holding at the battle location.", flavor: "What the Scorpion takes, the Scorpion keeps.", set: "Gold Edition", rarity: "Common" },
+{ title: "Bayushi Aramoro", clan: "Scorpion", type: "Personality", cost: 4, force: 4, chi: 3, ph: 1, keywords: "Bushi Duelist Ninja", text: "Battle: Challenge a target Personality. If Aramoro wins, that Personality is removed from the game.", flavor: "He does not defeat his opponents. He erases them.", set: "Jade Edition", rarity: "Rare" }];
+
+
+// ─── Components ──────────────────────────────────────────────────────────────
+
+function ClanBadge({ clan }) {
+  const cs = getClanStyle(clan);
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      fontFamily: "'Noto Serif', Georgia, serif",
+      fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      color: 'var(--on-surface)',
+      textShadow: `0 0 8px ${cs.border}cc`,
+    }}>
+      {clan}
+    </span>);
+
+}
+
+function TypeBadge({ type }) {
+  const color = TYPE_COLORS[type] || '#c9a84c';
+  return (
+    <span style={{
+      display: 'inline-block',
+      padding: '1px 7px',
+      fontFamily: "'Noto Serif', Georgia, serif",
+      fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+      textTransform: 'uppercase',
+      color: '#18120e',
+      background: color,
+      clipPath: 'polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%)'
+    }}>
+      {type}
+    </span>);
+
+}
+
+function StatPip({ label, value, color = '#ede0d9' }) {
+  if (value === null || value === undefined) return null;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      minWidth: 32
+    }}>
+      <span style={{
+        fontFamily: "'Noto Serif', Georgia, serif",
+        fontSize: 24, fontWeight: 700, lineHeight: 1,
+        color: color, textShadow: `0 0 14px ${color}, 0 0 4px ${color}bb`,
+      }}>{value}</span>
+      <span style={{
+        fontFamily: "'Noto Serif', Georgia, serif",
+        fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+        textTransform: 'uppercase', color: 'var(--on-surface-variant)',
+        marginTop: 2,
+      }}>{label}</span>
+    </div>);
+
+}
+
+// ─── Card: Gallery tile ──────────────────────────────────────────────────────
+
+function CardTile({ card, onSelect, selected }) {
+  const cs = getClanStyle(card.clan);
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      onClick={() => onSelect(card)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        cursor: 'pointer',
+        background: `linear-gradient(160deg, var(--surface-bright) 0%, var(--surface-highest) 100%)`,
+        border: `1px solid ${hovered || selected ? cs.border : 'var(--outline)'}`,
+        boxShadow: hovered || selected ?
+        `0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px ${cs.border}44, inset 0 1px 0 ${cs.border}22` :
+        `0 4px 16px rgba(0,0,0,0.5)`,
+        transform: hovered ? 'translateY(-3px) scale(1.01)' : selected ? 'translateY(-1px)' : 'none',
+        transition: 'all 0.2s ease',
+        overflow: 'hidden',
+        display: 'flex', flexDirection: 'column'
+      }}>
+
+      {/* Metallic outer ring */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        boxShadow: `inset 0 0 0 2px ${cs.border}33`,
+        zIndex: 2
+      }} />
+
+      {/* Art area */}
+      <div style={{
+        height: 110, position: 'relative', overflow: 'hidden',
+        background: `linear-gradient(135deg, ${cs.glow} 0%, rgba(24,18,14,0.9) 60%)`,
+        borderBottom: `1px solid ${cs.border}44`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }}>
+        {card.type === 'Personality' ? (
+          <>
+            {/* Real art with per-card lighting variation */}
+            {(() => {
+              const seed = card.title.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+              const LIGHTS = [
+                // warm candlelight
+                { filter: 'sepia(0.3) saturate(1.1) brightness(0.88) contrast(1.08)', objectPosition: '50% 20%' },
+                // cool moonlight
+                { filter: 'sepia(0.1) saturate(0.85) brightness(0.82) hue-rotate(200deg) contrast(1.12)', objectPosition: '50% 15%' },
+                // dramatic shadows
+                { filter: 'brightness(0.72) contrast(1.25) saturate(1.2)', objectPosition: '40% 25%' },
+                // crimson dusk
+                { filter: 'sepia(0.4) saturate(1.3) brightness(0.85) hue-rotate(-10deg)', objectPosition: '60% 10%' },
+                // pale dawn
+                { filter: 'saturate(0.7) brightness(0.92) contrast(0.95)', objectPosition: '50% 30%' },
+                // deep night
+                { filter: 'brightness(0.65) saturate(1.4) contrast(1.3) hue-rotate(10deg)', objectPosition: '45% 20%' },
+              ];
+              const light = LIGHTS[seed % LIGHTS.length];
+              return (
+                <img
+                  src="assets/card-art-personality.png"
+                  alt={card.title}
+                  style={{
+                    position: 'absolute', inset: 0,
+                    width: '100%', height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: light.objectPosition,
+                    filter: light.filter,
+                    transition: 'filter 0.3s ease',
+                  }}
+                />
+              );
+            })()}
+            {/* Vignette overlay on art */}
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: 'radial-gradient(ellipse at 50% 40%, transparent 40%, rgba(0,0,0,0.55) 100%)',
+              zIndex: 1,
+            }} />
+          </>
+        ) : (
+          <>
+            {/* Striped placeholder for non-Personality cards */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(0,0,0,0.15) 8px, rgba(0,0,0,0.15) 9px)`,
+              opacity: 0.5
+            }} />
+            <span style={{
+              position: 'relative', zIndex: 1,
+              fontFamily: 'monospace', fontSize: 9,
+              color: `${cs.border}88`, textAlign: 'center',
+              letterSpacing: '0.05em', padding: '0 8px',
+              textTransform: 'uppercase'
+            }}>{card.type}<br />{card.clan}</span>
+          </>
+        )}
+
+        {/* Type badge overlay */}
+        <div style={{ position: 'absolute', top: 6, left: 6, zIndex: 3 }}>
+          <TypeBadge type={card.type} />
+        </div>
+
+        {/* Cost gem */}
+        {card.cost > 0 &&
+        <div style={{
+          position: 'absolute', top: 4, right: 6, zIndex: 3,
+          width: 22, height: 22, borderRadius: '50%',
+          background: `radial-gradient(circle at 35% 35%, #f0d080, var(--bronze-dim))`,
+          border: `1px solid var(--bronze)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: "'Noto Serif', serif", fontSize: 11, fontWeight: 700,
+          color: '#18120e',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.5)'
+        }}>{card.cost}</div>
+        }
+      </div>
+
+      {/* Card name ribbon */}
+      <div style={{
+        padding: '7px 10px 5px',
+        background: `linear-gradient(90deg, ${cs.border}28 0%, var(--surface-highest) 100%)`,
+        borderBottom: `1px solid ${cs.border}55`
+      }}>
+        <div style={{
+          fontFamily: "'Noto Serif', Georgia, serif",
+          fontSize: 12, fontWeight: 700, lineHeight: 1.2,
+          color: 'var(--on-surface)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+        }}>{card.title}</div>
+        <div style={{ marginTop: 2 }}>
+          <ClanBadge clan={card.clan} />
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div style={{
+        padding: '6px 10px',
+        display: 'flex', gap: 8, alignItems: 'center',
+        minHeight: 44,
+        background: 'var(--surface-highest)'
+      }}>
+        {card.type === 'Personality' &&
+        <>
+            <StatPip label="F" value={card.force} color="#ffb3ad" />
+            <div style={{ width: 1, height: 24, background: 'var(--outline-variant)' }} />
+            <StatPip label="C" value={card.chi} color="#adcfb3" />
+            <div style={{ width: 1, height: 24, background: 'var(--outline-variant)' }} />
+            <StatPip label="PH" value={card.ph} color="#eebd8e" />
+          </>
+        }
+        {card.type === 'Stronghold' &&
+        <StatPip label="Honor" value={card.startinghonor} color="#c9a84c" />
+        }
+        {(card.type === 'Strategy' || card.type === 'Spell') &&
+        <span style={{
+          fontFamily: "'Newsreader', Georgia, serif",
+          fontStyle: 'italic', fontSize: 10,
+          color: 'var(--outline)', lineHeight: 1.4,
+          overflow: 'hidden', display: '-webkit-box',
+          WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
+        }}>{card.text?.substring(0, 60)}…</span>
+        }
+        {(card.type === 'Holding' || card.type === 'Item' || card.type === 'Region' || card.type === 'Event') &&
+        <span style={{
+          fontFamily: "'Newsreader', Georgia, serif",
+          fontStyle: 'italic', fontSize: 10,
+          color: 'var(--outline)', lineHeight: 1.4,
+          overflow: 'hidden', display: '-webkit-box',
+          WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
+        }}>{card.text?.substring(0, 60)}…</span>
+        }
+      </div>
+
+      {/* Keyword chips */}
+      {card.keywords &&
+      <div style={{
+        padding: '0 10px 8px',
+        background: 'var(--surface-highest)',
+        display: 'flex', flexWrap: 'wrap', gap: 3
+      }}>
+          {card.keywords.split(' ').filter(Boolean).map((kw, i) =>
+        <span key={i} style={{
+          fontFamily: "'Noto Serif', serif",
+          fontSize: 8, fontWeight: 700, letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--outline)', border: '1px solid var(--outline-variant)',
+          padding: '1px 4px'
+        }}>{kw}</span>
+        )}
+        </div>
+      }
+    </div>);
+
+}
+
+// ─── Card detail panel ───────────────────────────────────────────────────────
+
+function CardDetail({ card, onClose }) {
+  const cs = getClanStyle(card.clan);
+  const [tab, setTab] = useState('text');
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.75)'
+    }} onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 680, maxHeight: '90vh',
+          background: 'var(--surface-container)',
+          border: `1px solid ${cs.border}`,
+          boxShadow: `0 24px 80px rgba(0,0,0,0.9), 0 0 0 1px ${cs.border}44, 0 0 60px ${cs.glow}`,
+          display: 'flex', overflow: 'hidden',
+          position: 'relative'
+        }}>
+
+        {/* Filigree corners */}
+        {['tl', 'tr', 'bl', 'br'].map((pos) =>
+        <div key={pos} style={{
+          position: 'absolute',
+          top: pos.includes('t') ? 0 : 'auto',
+          bottom: pos.includes('b') ? 0 : 'auto',
+          left: pos.includes('l') ? 0 : 'auto',
+          right: pos.includes('r') ? 0 : 'auto',
+          width: 24, height: 24, pointerEvents: 'none', zIndex: 10,
+          borderColor: cs.border,
+          borderStyle: 'solid',
+          borderWidth: pos === 'tl' ? '2px 0 0 2px' : pos === 'tr' ? '2px 2px 0 0' : pos === 'bl' ? '0 0 2px 2px' : '0 2px 2px 0',
+          opacity: 0.6
+        }} />
+        )}
+
+        {/* Left: Art column */}
+        <div style={{
+          width: 220, flexShrink: 0,
+          display: 'flex', flexDirection: 'column',
+          background: `linear-gradient(160deg, ${cs.glow} 0%, var(--surface-low) 100%)`,
+          borderRight: `1px solid ${cs.border}44`
+        }}>
+          {/* Art area */}
+          <div style={{
+            flex: 1, position: 'relative', minHeight: 200,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.12) 10px, rgba(0,0,0,0.12) 11px)`
+          }}>
+            {card.type === 'Personality' ? (
+              <>
+                {(() => {
+                  const seed = card.title.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+                  const LIGHTS = [
+                    { filter: 'sepia(0.3) saturate(1.1) brightness(0.88) contrast(1.08)', objectPosition: '50% 20%' },
+                    { filter: 'sepia(0.1) saturate(0.85) brightness(0.82) hue-rotate(200deg) contrast(1.12)', objectPosition: '50% 15%' },
+                    { filter: 'brightness(0.72) contrast(1.25) saturate(1.2)', objectPosition: '40% 25%' },
+                    { filter: 'sepia(0.4) saturate(1.3) brightness(0.85) hue-rotate(-10deg)', objectPosition: '60% 10%' },
+                    { filter: 'saturate(0.7) brightness(0.92) contrast(0.95)', objectPosition: '50% 30%' },
+                    { filter: 'brightness(0.65) saturate(1.4) contrast(1.3) hue-rotate(10deg)', objectPosition: '45% 20%' },
+                  ];
+                  const light = LIGHTS[seed % LIGHTS.length];
+                  return (
+                    <img
+                      src="assets/card-art-personality.png"
+                      alt={card.title}
+                      style={{
+                        position: 'absolute', inset: 0,
+                        width: '100%', height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: light.objectPosition,
+                        filter: light.filter,
+                      }}
+                    />
+                  );
+                })()}
+                {/* Vignette */}
+                <div style={{
+                  position: 'absolute', inset: 0, pointerEvents: 'none',
+                  background: 'radial-gradient(ellipse at 50% 35%, transparent 35%, rgba(0,0,0,0.6) 100%)',
+                  zIndex: 1,
+                }} />
+              </>
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                fontFamily: 'monospace', fontSize: 10,
+                color: `${cs.border}66`, padding: 16,
+                textTransform: 'uppercase', letterSpacing: '0.05em',
+                lineHeight: 1.6
+              }}>
+                {card.title}<br />
+                <span style={{ opacity: 0.5 }}>{card.set}</span>
+              </div>
+            )}
+
+            {/* Double border frame */}
+            <div style={{
+              position: 'absolute', inset: 8,
+              border: `2px solid ${cs.border}55`,
+              pointerEvents: 'none', zIndex: 2,
+            }} />
+            <div style={{
+              position: 'absolute', inset: 12,
+              border: `1px solid ${cs.border}30`,
+              pointerEvents: 'none', zIndex: 2,
+            }} />
+          </div>
+
+          {/* Stats block */}
+          <div style={{
+            padding: '12px 16px',
+            borderTop: `1px solid ${cs.border}44`,
+            background: 'rgba(0,0,0,0.3)'
+          }}>
+            {card.type === 'Personality' &&
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <StatPip label="Force" value={card.force} color="#ffb3ad" />
+                <StatPip label="Chi" value={card.chi} color="#adcfb3" />
+                <StatPip label="P.H." value={card.ph} color="#eebd8e" />
+              </div>
+            }
+            {card.type === 'Stronghold' &&
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <StatPip label="Starting Honor" value={card.startinghonor} color="#c9a84c" />
+              </div>
+            }
+            {card.cost > 0 &&
+            <div style={{
+              marginTop: 8, textAlign: 'center',
+              fontFamily: "'Noto Serif', serif", fontSize: 11,
+              color: 'var(--outline)', letterSpacing: '0.08em',
+              textTransform: 'uppercase'
+            }}>
+                Cost: <span style={{ color: 'var(--bronze)', fontWeight: 700 }}>{card.cost} Gold</span>
+              </div>
+            }
+          </div>
+
+          {/* Set info */}
+          <div style={{
+            padding: '8px 16px 12px',
+            borderTop: `1px solid var(--outline-variant)`,
+            fontFamily: "'Noto Serif', serif", fontSize: 9,
+            color: 'var(--outline)', letterSpacing: '0.08em',
+            textTransform: 'uppercase', lineHeight: 1.6
+          }}>
+            <div>{card.set}</div>
+            <div style={{ color: 'var(--bronze)', marginTop: 2 }}>{card.rarity}</div>
+          </div>
+        </div>
+
+        {/* Right: text column */}
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          overflow: 'hidden'
+        }}>
+          {/* Title header */}
+          <div style={{
+            padding: '16px 20px 12px',
+            borderBottom: `1px solid ${cs.border}44`,
+            background: `linear-gradient(90deg, ${cs.border}12 0%, transparent 60%)`
+          }}>
+            <div style={{
+              fontFamily: "'Noto Serif', Georgia, serif",
+              fontSize: 22, fontWeight: 700, lineHeight: 1.1,
+              color: 'var(--on-surface)',
+              textShadow: `0 0 20px ${cs.border}44`
+            }}>{card.title}</div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center' }}>
+              <ClanBadge clan={card.clan} />
+              <span style={{ color: 'var(--outline-variant)', fontSize: 10 }}>·</span>
+              <TypeBadge type={card.type} />
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div style={{
+            display: 'flex', borderBottom: `1px solid var(--outline-variant)`
+          }}>
+            {['text', 'keywords', 'lore'].map((t) =>
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding: '8px 16px',
+              fontFamily: "'Noto Serif', serif", fontSize: 10,
+              fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: tab === t ? 'var(--bronze)' : 'var(--outline)',
+              background: tab === t ? 'rgba(201,168,76,0.08)' : 'transparent',
+              border: 'none', borderBottom: tab === t ? '2px solid var(--bronze)' : '2px solid transparent',
+              cursor: 'pointer', transition: 'all 0.15s ease'
+            }}>{t}</button>
+            )}
+          </div>
+
+          {/* Tab content */}
+          <div style={{
+            flex: 1, overflow: 'auto', padding: '16px 20px'
+          }}>
+            {tab === 'text' &&
+            <div>
+                <div style={{
+                fontFamily: "'Newsreader', Georgia, serif",
+                fontSize: 14, lineHeight: 1.7,
+                color: 'var(--on-surface)'
+              }}>{card.text}</div>
+              </div>
+            }
+            {tab === 'keywords' &&
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {(card.keywords || '').split(' ').filter(Boolean).map((kw, i) =>
+              <span key={i} style={{
+                padding: '4px 10px',
+                fontFamily: "'Noto Serif', serif",
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'var(--bronze)',
+                border: '1px solid var(--bronze-dim)',
+                background: 'rgba(201,168,76,0.08)'
+              }}>{kw}</span>
+              )}
+              </div>
+            }
+            {tab === 'lore' &&
+            <div>
+                {card.flavor ?
+              <blockquote style={{
+                borderLeft: `3px solid ${cs.border}`,
+                paddingLeft: 16, marginLeft: 0,
+                fontFamily: "'Newsreader', Georgia, serif",
+                fontStyle: 'italic', fontSize: 14, lineHeight: 1.8,
+                color: 'var(--on-surface-variant)'
+              }}>{card.flavor}</blockquote> :
+
+              <span style={{ color: 'var(--outline)', fontStyle: 'italic', fontSize: 13 }}>No flavor text recorded.</span>
+              }
+              </div>
+            }
+          </div>
+
+          {/* Close */}
+          <div style={{
+            padding: '10px 20px',
+            borderTop: `1px solid var(--outline-variant)`,
+            display: 'flex', justifyContent: 'flex-end'
+          }}>
+            <button onClick={onClose} style={{
+              padding: '6px 20px',
+              fontFamily: "'Noto Serif', serif",
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: 'var(--bronze)',
+              background: 'rgba(201,168,76,0.08)',
+              border: '1px solid var(--bronze-dim)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(201,168,76,0.18)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(201,168,76,0.08)'}>
+              Close Grimoire</button>
+          </div>
+        </div>
+      </div>
+    </div>);
+
+}
+
+// ─── Filter bar ──────────────────────────────────────────────────────────────
+
+function FilterBar({ filter, setFilter, sortBy, setSortBy, search, setSearch }) {
+  const types = ['All', 'Personality', 'Holding', 'Strategy', 'Spell', 'Item', 'Region', 'Stronghold'];
+
+  return (
+    <div style={{
+      display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+      padding: '10px 24px',
+      borderBottom: '1px solid var(--outline-variant)',
+      background: 'var(--surface-low)'
+    }}>
+      {/* Search */}
+      <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 280 }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search cards…"
+          style={{
+            width: '100%', padding: '7px 12px 7px 30px',
+            fontFamily: "'Newsreader', Georgia, serif",
+            fontStyle: 'italic', fontSize: 13,
+            color: 'var(--on-surface)',
+            background: 'var(--surface-container)',
+            border: '1px solid var(--outline-variant)',
+            boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.4)',
+            outline: 'none',
+            transition: 'border-color 0.15s'
+          }}
+          onFocus={(e) => e.target.style.borderColor = 'var(--bronze)'}
+          onBlur={(e) => e.target.style.borderColor = 'var(--outline-variant)'} />
+
+        <span style={{
+          position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+          color: 'var(--outline)', fontSize: 12, pointerEvents: 'none'
+        }}>⚔</span>
+      </div>
+
+      {/* Type filters */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {types.map((t) =>
+        <button key={t} onClick={() => setFilter(t)} style={{
+          padding: '4px 10px',
+          fontFamily: "'Noto Serif', serif",
+          fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: filter === t ? '#18120e' : 'var(--outline)',
+          background: filter === t ?
+          TYPE_COLORS[t] || 'var(--bronze)' :
+          'var(--surface-container)',
+          border: `1px solid ${filter === t ? TYPE_COLORS[t] || 'var(--bronze)' : 'var(--outline-variant)'}`,
+          cursor: 'pointer',
+          transition: 'all 0.15s'
+        }}>{t}</button>
+        )}
+      </div>
+
+      {/* Sort */}
+      <select
+        value={sortBy}
+        onChange={(e) => setSortBy(e.target.value)}
+        style={{
+          padding: '6px 10px',
+          fontFamily: "'Noto Serif', serif",
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--outline)',
+          background: 'var(--surface-container)',
+          border: '1px solid var(--outline-variant)',
+          outline: 'none', cursor: 'pointer'
+        }}>
+
+        <option value="name">Sort: Name</option>
+        <option value="cost">Sort: Cost</option>
+        <option value="type">Sort: Type</option>
+        <option value="force">Sort: Force</option>
+        <option value="chi">Sort: Chi</option>
+      </select>
+    </div>);
+
+}
+
+// ─── Deck stats sidebar ──────────────────────────────────────────────────────
+
+function DeckStats({ cards }) {
+  const typeCounts = cards.reduce((acc, c) => {
+    acc[c.type] = (acc[c.type] || 0) + 1;
+    return acc;
+  }, {});
+  const avgCost = (cards.filter((c) => c.cost > 0).reduce((s, c) => s + c.cost, 0) / cards.filter((c) => c.cost > 0).length || 0).toFixed(1);
+  const personalities = cards.filter((c) => c.type === 'Personality');
+  const avgForce = personalities.length ? (personalities.reduce((s, c) => s + (c.force || 0), 0) / personalities.length).toFixed(1) : '—';
+
+  return (
+    <div style={{
+      width: 200, flexShrink: 0,
+      background: 'var(--surface-low)',
+      borderLeft: '1px solid var(--outline-variant)',
+      display: 'flex', flexDirection: 'column',
+      overflowY: 'auto'
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '14px 16px 10px',
+        borderBottom: '1px solid var(--outline-variant)',
+        background: 'linear-gradient(90deg, rgba(201,168,76,0.08) 0%, transparent 100%)'
+      }}>
+        <div style={{
+          fontFamily: "'Noto Serif', serif",
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: 'var(--bronze)'
+        }}>Deck Composition</div>
+        <div style={{
+          fontFamily: "'Newsreader', serif",
+          fontSize: 24, fontWeight: 700, color: 'var(--on-surface)',
+          marginTop: 4, lineHeight: 1
+        }}>{cards.length}<span style={{ fontSize: 12, color: 'var(--outline)', marginLeft: 4 }}>cards</span></div>
+      </div>
+
+      {/* Type breakdown */}
+      <div style={{ padding: '12px 16px', width: "207px" }}>
+        <div style={{
+          fontFamily: "'Noto Serif', serif", fontSize: 9,
+          fontWeight: 700, letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: 'var(--outline)',
+          marginBottom: 8
+        }}>By Type</div>
+        {Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).map(([type, count]) =>
+        <div key={type} style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: 5
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{
+              width: 3, height: 12,
+              background: TYPE_COLORS[type] || 'var(--bronze)',
+              flexShrink: 0
+            }} />
+              <span style={{
+              fontFamily: "'Noto Serif', serif", fontSize: 10,
+              color: 'var(--on-surface-variant)'
+            }}>{type}</span>
+            </div>
+            <span style={{
+            fontFamily: "'Noto Serif', serif", fontSize: 11,
+            fontWeight: 700, color: TYPE_COLORS[type] || 'var(--bronze)'
+          }}>{count}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Curve */}
+      <div style={{ padding: '0 16px 12px', borderTop: '1px solid var(--outline-variant)', marginTop: 4 }}>
+        <div style={{
+          fontFamily: "'Noto Serif', serif", fontSize: 9,
+          fontWeight: 700, letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: 'var(--outline)',
+          margin: '10px 0 8px'
+        }}>Cost Curve</div>
+        {[0, 1, 2, 3, 4, 5, 6].map((cost) => {
+          const count = cards.filter((c) => c.cost === cost).length;
+          const max = Math.max(...[0, 1, 2, 3, 4, 5, 6].map((c) => cards.filter((x) => x.cost === c).length));
+          return (
+            <div key={cost} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
+              <span style={{
+                fontFamily: "'Noto Serif', serif", fontSize: 9,
+                color: 'var(--outline)', width: 10, textAlign: 'right', flexShrink: 0
+              }}>{cost}</span>
+              <div style={{
+                height: 8, flex: 1,
+                background: 'var(--surface-container)',
+                position: 'relative', overflow: 'hidden'
+              }}>
+                {count > 0 && <div style={{
+                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  width: `${count / max * 100}%`,
+                  background: 'linear-gradient(90deg, var(--bronze), var(--bronze-dim))',
+                  transition: 'width 0.3s ease'
+                }} />}
+              </div>
+              <span style={{
+                fontFamily: "'Noto Serif', serif", fontSize: 9,
+                color: 'var(--bronze)', width: 12, flexShrink: 0
+              }}>{count || ''}</span>
+            </div>);
+
+        })}
+      </div>
+
+      {/* Stats */}
+      <div style={{
+        padding: '10px 16px 16px',
+        borderTop: '1px solid var(--outline-variant)'
+      }}>
+        <div style={{
+          fontFamily: "'Noto Serif', serif", fontSize: 9,
+          fontWeight: 700, letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: 'var(--outline)',
+          marginBottom: 8
+        }}>Averages</div>
+        {[
+        { label: 'Avg Cost', value: avgCost },
+        { label: 'Avg Force', value: avgForce }].
+        map(({ label, value }) =>
+        <div key={label} style={{
+          display: 'flex', justifyContent: 'space-between',
+          marginBottom: 5
+        }}>
+            <span style={{ fontFamily: "'Newsreader', serif", fontSize: 11, color: 'var(--outline)' }}>{label}</span>
+            <span style={{ fontFamily: "'Noto Serif', serif", fontSize: 12, fontWeight: 700, color: 'var(--bronze)' }}>{value}</span>
+          </div>
+        )}
+      </div>
+    </div>);
+
+}
+
+// ─── Live Oracle fetch panel ─────────────────────────────────────────────────
+
+function OraclePanel({ onCardsLoaded }) {
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  async function fetchCard() {
+    if (!query.trim()) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const prompt = `You are a Legend of the Five Rings CCG oracle assistant. Look up the L5R card "${query}" using the Oracle of the Void API.
+
+API endpoint: POST https://api.oracleofthevoid.com/search
+Required headers:
+  accept: application/json, text/javascript, */*; q=0.01
+  content-type: application/json
+  origin: https://oracleofthevoid.com
+  referer: https://oracleofthevoid.com/
+
+Body (raw URL-encoded string):
+  type_title=text&field_title=${encodeURIComponent(query)}&table=l5r&sort=[{"title.keyword":{"order":"asc"}}]&size=10&from=0
+
+The response is JSON with key path hits.hits[*]._source containing fields: title, clan, type, force, chi, cost, ph, startinghonor, keywords, text, legality, printing[].
+
+Return ONLY a valid JSON object (no markdown, no explanation) in this format:
+{
+  "title": "Card Name",
+  "clan": "Clan Name",
+  "type": "Personality|Holding|Strategy|Spell|Item|Region|Stronghold|Event",
+  "cost": 0,
+  "force": null,
+  "chi": null,
+  "ph": null,
+  "startinghonor": null,
+  "keywords": "keyword string",
+  "text": "Card ability text",
+  "flavor": "Flavor text or null",
+  "set": "Set name",
+  "rarity": "Common|Uncommon|Rare|Fixed"
+}
+
+If you cannot fetch from the API, use your training knowledge of L5R CCG cards to provide accurate data. Never invent fictional cards — only return data for cards that actually exist.`;
+
+      const raw = await window.claude.complete(prompt);
+      // Try to extract JSON from the response
+      const jsonMatch = raw.match(/\{[\s\S]+\}/);
+      if (!jsonMatch) throw new Error('No JSON found in response');
+      const card = JSON.parse(jsonMatch[0]);
+      setResult(card);
+    } catch (e) {
+      setError(`Failed to fetch card: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function addToView() {
+    if (result) onCardsLoaded(result);
+  }
+
+  return (
+    <div style={{
+      padding: '14px 16px',
+      borderBottom: '1px solid var(--outline-variant)',
+      background: 'linear-gradient(90deg, rgba(238,189,142,0.05) 0%, transparent 100%)'
+    }}>
+      <div style={{
+        fontFamily: "'Noto Serif', serif",
+        fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+        textTransform: 'uppercase', color: 'var(--tertiary)',
+        marginBottom: 8,
+        display: 'flex', alignItems: 'center', gap: 6
+      }}>
+        <span>⚡</span> Oracle Lookup
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && fetchCard()}
+          placeholder="e.g. Bayushi Kachiko…"
+          style={{
+            flex: 1, padding: '6px 10px',
+            fontFamily: "'Newsreader', Georgia, serif",
+            fontStyle: 'italic', fontSize: 12,
+            color: 'var(--on-surface)',
+            background: 'var(--surface-container)',
+            border: '1px solid var(--outline-variant)',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+            outline: 'none'
+          }}
+          onFocus={(e) => e.target.style.borderColor = 'var(--tertiary)'}
+          onBlur={(e) => e.target.style.borderColor = 'var(--outline-variant)'} />
+
+        <button onClick={fetchCard} disabled={loading} style={{
+          padding: '6px 12px',
+          fontFamily: "'Noto Serif', serif", fontSize: 9, fontWeight: 700,
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+          color: loading ? 'var(--outline)' : '#18120e',
+          background: loading ? 'var(--surface-container)' : 'linear-gradient(135deg, var(--tertiary), var(--bronze-dim))',
+          border: '1px solid var(--tertiary-container)',
+          cursor: loading ? 'wait' : 'pointer',
+          transition: 'all 0.15s'
+        }}>{loading ? '…' : 'Seek'}</button>
+      </div>
+
+      {error &&
+      <div style={{
+        marginTop: 8, padding: '6px 10px',
+        fontFamily: "'Newsreader', serif", fontSize: 11, fontStyle: 'italic',
+        color: 'var(--primary)', background: 'rgba(255,179,173,0.08)',
+        border: '1px solid rgba(255,179,173,0.2)'
+      }}>{error}</div>
+      }
+
+      {result &&
+      <div style={{
+        marginTop: 8,
+        padding: '8px 10px',
+        background: 'var(--surface-container)',
+        border: `1px solid ${getClanStyle(result.clan).border}55`
+      }}>
+          <div style={{
+          fontFamily: "'Noto Serif', serif", fontSize: 12, fontWeight: 700,
+          color: 'var(--on-surface)'
+        }}>{result.title}</div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}>
+            <ClanBadge clan={result.clan} />
+            <TypeBadge type={result.type} />
+          </div>
+          <button onClick={addToView} style={{
+          marginTop: 8, padding: '4px 12px',
+          fontFamily: "'Noto Serif', serif", fontSize: 9,
+          fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+          color: 'var(--secondary)', background: 'rgba(173,207,179,0.1)',
+          border: '1px solid rgba(173,207,179,0.3)',
+          cursor: 'pointer', width: '100%'
+        }}
+        onMouseEnter={(e) => e.target.style.background = 'rgba(173,207,179,0.2)'}
+        onMouseLeave={(e) => e.target.style.background = 'rgba(173,207,179,0.1)'}>
+          Add to Gallery</button>
+        </div>
+      }
+    </div>);
+
+}
+
+// ─── Main App ────────────────────────────────────────────────────────────────
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [cards, setCards] = useState(SAMPLE_DECK);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [filter, setFilter] = useState('All');
+  const [sortBy, setSortBy] = useState('type');
+  const [search, setSearch] = useState('');
+
+  const filteredCards = cards.
+  filter((c) => filter === 'All' || c.type === filter).
+  filter((c) => !search || c.title.toLowerCase().includes(search.toLowerCase()) || (c.text || '').toLowerCase().includes(search.toLowerCase())).
+  sort((a, b) => {
+    if (sortBy === 'name') return a.title.localeCompare(b.title);
+    if (sortBy === 'cost') return a.cost - b.cost;
+    if (sortBy === 'type') return a.type.localeCompare(b.type) || a.title.localeCompare(b.title);
+    if (sortBy === 'force') return (b.force || 0) - (a.force || 0);
+    if (sortBy === 'chi') return (b.chi || 0) - (a.chi || 0);
+    return 0;
+  });
+
+  function addCard(card) {
+    setCards((prev) => {
+      if (prev.find((c) => c.title === card.title)) return prev;
+      return [...prev, card];
+    });
+  }
+
+  const cols = t.cardDensity === 'compact' ? 7 : t.cardDensity === 'comfortable' ? 5 : 4;
+
+  return (
+    <div style={{
+      height: '100vh', display: 'flex', flexDirection: 'column',
+      position: 'relative',
+      backgroundImage: t.backgroundTexture === 'wood' ?
+      `repeating-linear-gradient(88deg, transparent, transparent 2px, rgba(255,180,100,0.018) 2px, rgba(255,180,100,0.018) 4px), repeating-linear-gradient(92deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 6px)` :
+      'none',
+      backgroundColor: 'var(--surface)'
+    }}>
+      {/* Header */}
+      <header style={{
+        padding: '12px 24px',
+        borderBottom: '1px solid var(--outline-variant)',
+        background: 'linear-gradient(180deg, var(--surface-container) 0%, var(--surface-low) 100%)',
+        display: 'flex', alignItems: 'center', gap: 16,
+        flexShrink: 0,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+        position: 'relative', zIndex: 10
+      }}>
+        {/* Logo mark */}
+        <div style={{
+          width: 36, height: 36,
+          border: '2px solid var(--bronze)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'relative',
+          boxShadow: '0 0 12px rgba(201,168,76,0.3)',
+          flexShrink: 0
+        }}>
+          <div style={{
+            position: 'absolute', inset: 3,
+            border: '1px solid rgba(201,168,76,0.4)'
+          }} />
+          <span style={{
+            fontFamily: "'Noto Serif', serif", fontWeight: 700,
+            fontSize: 14, color: 'var(--bronze)',
+            position: 'relative', zIndex: 1
+          }}>M</span>
+        </div>
+
+        <div>
+          <div style={{
+            fontFamily: "'Noto Serif', Georgia, serif",
+            fontSize: 18, fontWeight: 700, lineHeight: 1,
+            color: 'var(--on-surface)',
+            letterSpacing: '-0.01em'
+          }}>Merdoku</div>
+          <div style={{
+            fontFamily: "'Noto Serif', serif",
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: 'var(--bronze)',
+            marginTop: 2, opacity: 0.8
+          }}>Relic & Ritual · L5R Grimoire</div>
+        </div>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Deck name */}
+        <div style={{
+          textAlign: 'right',
+          fontFamily: "'Noto Serif', serif"
+        }}>
+          <div style={{
+            fontSize: 13, fontWeight: 600, color: 'var(--on-surface)'
+          }}>Scorpion Conspiracy</div>
+          <div style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: 'var(--outline)',
+            marginTop: 1
+          }}>{cards.length} cards · Scorpion Clan</div>
+        </div>
+
+        {/* Honor track */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          padding: '6px 14px',
+          border: '1px solid var(--bronze-dim)',
+          background: 'rgba(201,168,76,0.08)'
+        }}>
+          <span style={{
+            fontFamily: "'Noto Serif', serif",
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+            textTransform: 'uppercase', color: 'var(--outline)'
+          }}>Starting Honor</span>
+          <span style={{
+            fontFamily: "'Noto Serif', serif",
+            fontSize: 22, fontWeight: 700, lineHeight: 1,
+            color: 'var(--bronze)',
+            textShadow: '0 0 12px rgba(201,168,76,0.4)'
+          }}>6</span>
+        </div>
+      </header>
+
+      {/* Body */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+        {/* Left sidebar */}
+        <div style={{
+          flexShrink: 0,
+          borderRight: '1px solid var(--outline-variant)',
+          background: 'var(--surface-low)',
+          display: 'flex', flexDirection: 'column',
+          overflowY: 'auto', width: "262px"
+        }}>
+          <OraclePanel onCardsLoaded={addCard} />
+          <DeckStats cards={cards} />
+        </div>
+
+        {/* Main gallery */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <FilterBar
+            filter={filter} setFilter={setFilter}
+            sortBy={sortBy} setSortBy={setSortBy}
+            search={search} setSearch={setSearch} />
+
+
+          <div style={{
+            flex: 1, overflowY: 'auto',
+            padding: '20px 24px'
+          }}>
+            {/* Section groups */}
+            {['Stronghold', 'Personality', 'Holding', 'Item', 'Spell', 'Strategy', 'Region', 'Event'].map((type) => {
+              const typeCards = filteredCards.filter((c) => c.type === type);
+              if (typeCards.length === 0) return null;
+              return (
+                <div key={type} style={{ marginBottom: 28 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    marginBottom: 12
+                  }}>
+                    <div style={{
+                      height: 1, flex: 0, width: 20,
+                      background: `linear-gradient(90deg, transparent, ${TYPE_COLORS[type] || 'var(--bronze)'})`
+                    }} />
+                    <span style={{
+                      fontFamily: "'Noto Serif', serif",
+                      fontSize: 10, fontWeight: 700, letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      color: TYPE_COLORS[type] || 'var(--bronze)',
+                      flexShrink: 0
+                    }}>{type}s</span>
+                    <div style={{
+                      height: 1, flex: 1,
+                      background: `linear-gradient(90deg, ${TYPE_COLORS[type] || 'var(--bronze)'}44, transparent)`
+                    }} />
+                    <span style={{
+                      fontFamily: "'Noto Serif', serif",
+                      fontSize: 10, fontWeight: 700,
+                      color: 'var(--outline)'
+                    }}>{typeCards.length}</span>
+                  </div>
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${filter === 'All' ? cols : cols + 1}, 1fr)`,
+                    gap: 10
+                  }}>
+                    {typeCards.map((card) =>
+                    <CardTile
+                      key={card.title}
+                      card={card}
+                      selected={selectedCard?.title === card.title}
+                      onSelect={setSelectedCard} />
+
+                    )}
+                  </div>
+                </div>);
+
+            })}
+
+            {filteredCards.length === 0 &&
+            <div style={{
+              textAlign: 'center', padding: '80px 40px',
+              color: 'var(--outline)',
+              fontFamily: "'Newsreader', Georgia, serif",
+              fontStyle: 'italic', fontSize: 16
+            }}>No relics found in the archive…</div>
+            }
+          </div>
+        </div>
+
+        {/* Right stats */}
+      </div>
+
+      {/* Card detail modal */}
+      {selectedCard &&
+      <CardDetail card={selectedCard} onClose={() => setSelectedCard(null)} />
+      }
+
+      {/* Tweaks panel */}
+      <TweaksPanel>
+        <TweakSection label="Layout">
+          <TweakRadio label="Card Density" value={t.cardDensity} options={['compact', 'comfortable', 'spacious']} onChange={(v) => setTweak('cardDensity', v)} />
+          <TweakToggle label="Show Flavor Text" value={t.showFlavor} onChange={(v) => setTweak('showFlavor', v)} />
+          <TweakRadio label="Background" value={t.backgroundTexture} options={['wood', 'plain']} onChange={(v) => setTweak('backgroundTexture', v)} />
+        </TweakSection>
+        <TweakSection label="Color">
+          <TweakColor label="Accent Color" value={t.accentColor} onChange={(v) => setTweak('accentColor', v)} />
+        </TweakSection>
+      </TweaksPanel>
+    </div>);
+
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+
+<template id="__bundler_thumbnail">
+<svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="140" fill="#18120e"/>
+  <rect x="20" y="20" width="50" height="70" rx="2" fill="#3f3833" stroke="#c9a84c" stroke-width="1.5"/>
+  <rect x="80" y="20" width="50" height="70" rx="2" fill="#3f3833" stroke="#c9a84c" stroke-width="1"/>
+  <rect x="140" y="20" width="50" height="70" rx="2" fill="#3f3833" stroke="#a68a87" stroke-width="1"/>
+  <text x="45" y="90" font-family="serif" font-size="10" fill="#c9a84c" text-anchor="middle">M</text>
+  <text x="100" y="108" font-family="serif" font-size="8" fill="#ede0d9" text-anchor="middle">Merdoku</text>
+</svg>
+</template>
+</body>
+</html>

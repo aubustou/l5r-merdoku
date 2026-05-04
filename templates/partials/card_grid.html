@@ -1,0 +1,30 @@
+{% for type_name in type_order %}
+  {% set type_cards = grouped.get(type_name, []) %}
+  {% if type_cards %}
+  {% set tc = type_colors.get(type_name, '#c9a84c') %}
+  <div class="card-section">
+    <div class="section-header" style="--type-color:{{ tc }}">
+      <div class="section-line-l"></div>
+      <span class="section-label">{{ type_name }}s</span>
+      <div class="section-line-r"></div>
+      <span class="section-count">{{ type_cards | length }}</span>
+    </div>
+    <div class="cards-grid {% if filter != 'All' %}filter-active{% endif %}">
+      {% for card in type_cards %}
+        {% include "partials/card_tile.html" %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}
+
+{% if not cards %}
+<div class="gallery-empty">No relics found in the archive…</div>
+{% endif %}
+
+{% if is_htmx %}
+<!-- OOB: keep deck stats in sync with filtered results -->
+<div id="deck-stats" hx-swap-oob="true">
+  {% include "partials/deck_stats.html" %}
+</div>
+{% endif %}

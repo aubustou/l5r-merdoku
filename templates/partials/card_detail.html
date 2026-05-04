@@ -1,0 +1,113 @@
+{% set cs = card.clan | clan_style %}
+{% set tc = type_colors.get(card.type, '#c9a84c') %}
+<div class="modal-backdrop" onclick="merdokuCloseModal()">
+  <div class="modal-card" onclick="event.stopPropagation()"
+       style="--clan-border:{{ cs.border }};--clan-glow:{{ cs.glow }};border:1px solid {{ cs.border }};box-shadow:0 24px 80px rgba(0,0,0,0.9),0 0 0 1px {{ cs.border }}44,0 0 60px {{ cs.glow }}">
+
+    <!-- Filigree corners -->
+    <div class="modal-corner tl" style="border-color:{{ cs.border }}"></div>
+    <div class="modal-corner tr" style="border-color:{{ cs.border }}"></div>
+    <div class="modal-corner bl" style="border-color:{{ cs.border }}"></div>
+    <div class="modal-corner br" style="border-color:{{ cs.border }}"></div>
+
+    <!-- Art column -->
+    <div class="modal-art-col" style="background:linear-gradient(160deg,{{ cs.glow }} 0%,var(--surface-low) 100%)">
+      <div class="modal-art">
+        {% if card.type == 'Personality' %}
+          {% set light = card.title | card_light %}
+          <img src="/static/assets/card-art-personality.png"
+               alt="{{ card.title }}"
+               style="filter:{{ light.filter }};object-position:{{ light.object_position }}">
+          <div class="modal-art-vignette"></div>
+        {% else %}
+          <div class="modal-art-placeholder">
+            {{ card.title }}<br>
+            <span style="opacity:0.5">{{ card.set_name }}</span>
+          </div>
+        {% endif %}
+        <div class="modal-art-frame-outer"></div>
+        <div class="modal-art-frame-inner"></div>
+      </div>
+
+      <!-- Stats block -->
+      <div class="modal-stats">
+        {% if card.type == 'Personality' %}
+          <div class="modal-stats-row">
+            <div class="stat-pip" style="--pip-color:#ffb3ad">
+              <span class="pip-value">{{ card.force }}</span>
+              <span class="pip-label">Force</span>
+            </div>
+            <div class="stat-pip" style="--pip-color:#adcfb3">
+              <span class="pip-value">{{ card.chi }}</span>
+              <span class="pip-label">Chi</span>
+            </div>
+            <div class="stat-pip" style="--pip-color:#eebd8e">
+              <span class="pip-value">{{ card.ph }}</span>
+              <span class="pip-label">P.H.</span>
+            </div>
+          </div>
+        {% elif card.type == 'Stronghold' %}
+          <div class="modal-stats-row">
+            <div class="stat-pip" style="--pip-color:#c9a84c">
+              <span class="pip-value">{{ card.startinghonor }}</span>
+              <span class="pip-label">Starting Honor</span>
+            </div>
+          </div>
+        {% endif %}
+        {% if card.cost > 0 %}
+        <div class="modal-cost">Cost: <span>{{ card.cost }} Gold</span></div>
+        {% endif %}
+      </div>
+
+      <!-- Set info -->
+      <div class="modal-set">
+        <div>{{ card.set_name }}</div>
+        <div class="modal-set-rarity">{{ card.rarity }}</div>
+      </div>
+    </div><!-- /art col -->
+
+    <!-- Text column -->
+    <div class="modal-text-col">
+      <div class="modal-title-hd" style="background:linear-gradient(90deg,{{ cs.border }}12 0%,transparent 60%)">
+        <div class="modal-title-name" style="text-shadow:0 0 20px {{ cs.border }}44">{{ card.title }}</div>
+        <div class="modal-title-badges">
+          <span class="clan-badge" style="--clan-border:{{ cs.border }}">{{ card.clan }}</span>
+          <span class="modal-title-dot">·</span>
+          <span class="type-badge" style="background:{{ tc }}">{{ card.type }}</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="text"     onclick="merdokuTab(this)">Text</button>
+        <button class="tab-btn"        data-tab="keywords" onclick="merdokuTab(this)">Keywords</button>
+        <button class="tab-btn"        data-tab="lore"     onclick="merdokuTab(this)">Lore</button>
+      </div>
+
+      <div class="tab-content">
+        <div class="tab-panel" data-panel="text">
+          <p class="card-ability-text">{{ card.text or '' }}</p>
+        </div>
+        <div class="tab-panel" data-panel="keywords" hidden>
+          <div class="keyword-list">
+            {% for kw in (card.keywords or '').split() %}
+            <span class="keyword-tag">{{ kw }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="tab-panel" data-panel="lore" hidden>
+          {% if card.flavor %}
+          <blockquote class="flavor-quote" style="border-left-color:{{ cs.border }}">{{ card.flavor }}</blockquote>
+          {% else %}
+          <span class="flavor-empty">No flavor text recorded.</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="modal-close-row">
+        <button class="modal-close-btn" onclick="merdokuCloseModal()">Close Grimoire</button>
+      </div>
+    </div><!-- /text col -->
+
+  </div><!-- /modal-card -->
+</div><!-- /backdrop -->

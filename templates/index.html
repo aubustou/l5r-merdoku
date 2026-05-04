@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block body %}
+<div id="app" class="wood-bg">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-logo"><span>M</span></div>
+    <div>
+      <div class="header-title">Merdoku</div>
+      <div class="header-subtitle">Relic &amp; Ritual · L5R Grimoire</div>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-deck">
+      <div class="header-deck-name">Scorpion Conspiracy</div>
+      <div class="header-deck-meta">{{ total }} cards · Scorpion Clan</div>
+    </div>
+    <div class="honor-track">
+      <span class="honor-label">Starting Honor</span>
+      <span class="honor-value">{{ starting_honor }}</span>
+    </div>
+    <button class="tweaks-gear" id="tweaks-gear" title="Tweaks">⚙</button>
+  </header>
+
+  <!-- Body -->
+  <div class="app-body">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <!-- Oracle panel -->
+      <div class="oracle-panel">
+        <div class="oracle-header"><span>⚡</span> Oracle Lookup</div>
+        <form hx-post="/oracle/lookup"
+              hx-target="#oracle-result"
+              hx-swap="innerHTML"
+              hx-indicator="#oracle-seek-btn">
+          <div class="oracle-input-row">
+            <input class="oracle-input" type="text" name="query"
+                   placeholder="e.g. Bayushi Kachiko…"
+                   autocomplete="off">
+            <button class="oracle-seek-btn" id="oracle-seek-btn" type="submit">
+              <span class="htmx-indicator" style="position:absolute;left:50%;transform:translateX(-50%)">…</span>
+              <span class="seek-label">Seek</span>
+            </button>
+          </div>
+        </form>
+        <div id="oracle-result" class="oracle-result"></div>
+      </div>
+
+      <!-- Deck stats -->
+      <div id="deck-stats">
+        {% include "partials/deck_stats.html" %}
+      </div>
+
+    </div><!-- /sidebar -->
+
+    <!-- Main gallery -->
+    <div class="main-gallery">
+
+      <!-- Filter bar (wrapping form so all controls share state) -->
+      <form id="filter-form" class="filter-bar" onsubmit="return false">
+        <!-- Search -->
+        <div class="search-wrap">
+          <span class="search-icon">⚔</span>
+          <input class="search-input" type="text" name="search"
+                 value="{{ search }}" placeholder="Search cards…"
+                 hx-get="/cards/grid"
+                 hx-trigger="input delay:300ms"
+                 hx-target="#card-grid"
+                 hx-swap="innerHTML"
+                 hx-include="#filter-form">
+        </div>
+
+        <!-- Type filter buttons (radio inputs styled as buttons) -->
+        <div class="type-filters">
+          {% set types = ['All', 'Personality', 'Holding', 'Strategy', 'Spell', 'Item', 'Region', 'Stronghold'] %}
+          {% for t in types %}
+          {% set tc = type_colors.get(t, '') %}
+          <label class="type-btn{% if filter == t %} active{% endif %}"
+                 style="{% if filter == t and tc %}background:{{ tc }};border-color:{{ tc }};{% endif %}">
+            <input type="radio" name="filter" value="{{ t }}"
+                   {% if filter == t %}checked{% endif %}
+                   style="display:none"
+                   hx-get="/cards/grid"
+                   hx-trigger="change"
+                   hx-target="#card-grid"
+                   hx-swap="innerHTML"
+                   hx-include="#filter-form"
+                   hx-on:htmx:after-request="updateTypeButtons(this)">
+            {{ t }}
+          </label>
+          {% endfor %}
+        </div>
+
+        <!-- Sort -->
+        <select class="sort-select" name="sort_by"
+                hx-get="/cards/grid"
+                hx-trigger="change"
+                hx-target="#card-grid"
+                hx-swap="innerHTML"
+                hx-include="#filter-form">
+          <option value="name"  {% if sort_by == 'name'  %}selected{% endif %}>Sort: Name</option>
+          <option value="cost"  {% if sort_by == 'cost'  %}selected{% endif %}>Sort: Cost</option>
+          <option value="type"  {% if sort_by == 'type'  %}selected{% endif %}>Sort: Type</option>
+          <option value="force" {% if sort_by == 'force' %}selected{% endif %}>Sort: Force</option>
+          <option value="chi"   {% if sort_by == 'chi'   %}selected{% endif %}>Sort: Chi</option>
+        </select>
+      </form>
+
+      <!-- Card gallery (also listens for cardsChanged event from oracle add) -->
+      <div class="gallery-scroll">
+        <div id="card-grid"
+             hx-get="/cards/grid"
+             hx-trigger="cardsChanged from:body"
+             hx-include="#filter-form"
+             hx-swap="innerHTML">
+          {% include "partials/card_grid.html" %}
+        </div>
+      </div>
+
+    </div><!-- /main-gallery -->
+  </div><!-- /app-body -->
+
+</div><!-- /#app -->
+
+<!-- Modal target -->
+<div id="modal-container"></div>
+
+<script>
+// Keep type filter buttons visually in sync after HTMX swaps
+function updateTypeButtons(radio) {
+  document.querySelectorAll('.type-btn').forEach(function(lbl) {
+    const inp = lbl.querySelector('input');
+    const active = inp && inp.checked;
+    lbl.classList.toggle('active', active);
+    const tc = inp ? inp.dataset.typeColor : '';
+    if (active && tc) {
+      lbl.style.background = tc;
+      lbl.style.borderColor = tc;
+    } else {
+      lbl.style.background = '';
+      lbl.style.borderColor = '';
+    }
+  });
+}
+</script>
+{% endblock %}

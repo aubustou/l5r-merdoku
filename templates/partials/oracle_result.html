@@ -1,0 +1,31 @@
+{% if error %}
+<div class="oracle-error">{{ error }}</div>
+{% elif card %}
+{% set cs = card.clan | clan_style %}
+{% set tc = type_colors.get(card.type, '#c9a84c') %}
+<div class="oracle-card-preview" style="--clan-border:{{ cs.border }};border-color:{{ cs.border }}55">
+  <div class="oracle-card-title">{{ card.title }}</div>
+  <div class="oracle-badges">
+    <span class="clan-badge" style="--clan-border:{{ cs.border }}">{{ card.clan }}</span>
+    <span class="type-badge" style="background:{{ tc }}">{{ card.type }}</span>
+  </div>
+  <form hx-post="/cards/add"
+        hx-swap="none"
+        hx-on::after-request="if(event.detail.successful){document.getElementById('oracle-result').innerHTML='<div class=oracle-added>Added to gallery.</div>'}">
+    <input type="hidden" name="title"         value="{{ card.title }}">
+    <input type="hidden" name="clan"          value="{{ card.clan }}">
+    <input type="hidden" name="type"          value="{{ card.type }}">
+    <input type="hidden" name="cost"          value="{{ card.cost or 0 }}">
+    <input type="hidden" name="force"         value="{{ card.force or '' }}">
+    <input type="hidden" name="chi"           value="{{ card.chi or '' }}">
+    <input type="hidden" name="ph"            value="{{ card.ph or '' }}">
+    <input type="hidden" name="startinghonor" value="{{ card.startinghonor or '' }}">
+    <input type="hidden" name="keywords"      value="{{ card.keywords or '' }}">
+    <input type="hidden" name="text"          value="{{ card.text or '' }}">
+    <input type="hidden" name="flavor"        value="{{ card.flavor or '' }}">
+    <input type="hidden" name="set"           value="{{ card.set or '' }}">
+    <input type="hidden" name="rarity"        value="{{ card.rarity or '' }}">
+    <button type="submit" class="oracle-add-btn">Add to Gallery</button>
+  </form>
+</div>
+{% endif %}

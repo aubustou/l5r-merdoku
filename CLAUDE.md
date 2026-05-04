@@ -19,6 +19,18 @@ The app runs at `http://localhost:8000`. The SQLite database (`merdoku.db`) is c
 
 The `ANTHROPIC_API_KEY` environment variable must be set for the Oracle AI fallback to work.
 
+## Running Tests
+
+```bash
+pip install -e ".[test]"
+playwright install chromium
+pytest
+```
+
+Tests use `pytest-playwright` against a real uvicorn server (port 8791) backed by an isolated SQLite test DB (`test_merdoku.db`, deleted after the session). The `get_db` dependency is overridden so the app DB is never touched. Oracle API calls are mocked — no `ANTHROPIC_API_KEY` needed.
+
+HTMX is served from `static/js/htmx.min.js` (bundled locally) so tests work without internet access.
+
 ## Architecture
 
 **Stack:** FastAPI + SQLAlchemy (SQLite) + Jinja2 templates + HTMX for partial updates. No JS framework — interactivity is driven by HTMX attributes on HTML elements.
@@ -37,3 +49,5 @@ The `ANTHROPIC_API_KEY` environment variable must be set for the Oracle AI fallb
 **Models** (`app/models.py`): Single `Card` table. `CLAN_COLORS`, `TYPE_COLORS`, `CARD_TYPE_ORDER`, and `LIGHTS` are defined here and imported by both the router and templates module.
 
 **Static prototype:** `Merdoku.html` is a standalone single-file React prototype (no build step, uses Babel standalone). The `tweaks-panel.jsx` is the source for the tweaks/settings panel used in the static prototype.
+
+**HTMX:** bundled locally at `static/js/htmx.min.js` (v2.0.4) and loaded from there in `base.html`. Do not switch back to the CDN — tests run offline.

@@ -1,0 +1,7 @@
+.htmx-indicator { opacity: 0; transition: opacity 0.2s ease; }
+.htmx-request .htmx-indicator { opacity: 1; }
+.htmx-request.htmx-indicator { opacity: 1; }
+
+/* Seek button label hides while loading */
+.oracle-seek-btn .seek-label { transition: opacity 0.2s; }
+.htmx-request .seek-label { opacity: 0; }

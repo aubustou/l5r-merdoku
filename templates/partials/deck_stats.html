@@ -1,0 +1,50 @@
+<!-- Header -->
+<div class="stats-header">
+  <div class="stats-label">Deck Composition</div>
+  <div class="stats-count">{{ total }}<span>cards</span></div>
+</div>
+
+<!-- By type -->
+<div class="stats-section">
+  <div class="stats-section-label">By Type</div>
+  {% for t, count in type_counts.items() | sort(attribute='1', reverse=True) %}
+  {% set tc = type_colors.get(t, '#c9a84c') %}
+  <div class="type-row">
+    <div class="type-row-left">
+      <div class="type-dot" style="background:{{ tc }}"></div>
+      <span class="type-row-name">{{ t }}</span>
+    </div>
+    <span class="type-row-count" style="color:{{ tc }}">{{ count }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Cost curve -->
+<div class="curve-section">
+  <div class="curve-label">Cost Curve</div>
+  {% for cost in range(7) %}
+  {% set count = cost_curve.get(cost, 0) %}
+  <div class="curve-row">
+    <span class="curve-cost">{{ cost }}</span>
+    <div class="curve-bar-wrap">
+      {% if count > 0 and max_curve > 0 %}
+      <div class="curve-bar" style="width:{{ (count / max_curve * 100) | round(1) }}%"></div>
+      {% endif %}
+    </div>
+    <span class="curve-count">{{ count if count > 0 else '' }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Averages -->
+<div class="avg-section">
+  <div class="stats-section-label">Averages</div>
+  <div class="avg-row">
+    <span class="avg-label">Avg Cost</span>
+    <span class="avg-value">{{ avg_cost }}</span>
+  </div>
+  <div class="avg-row">
+    <span class="avg-label">Avg Force</span>
+    <span class="avg-value">{{ avg_force }}</span>
+  </div>
+</div>

@@ -1,0 +1,27 @@
+:root {
+  --surface: #18120e;
+  --surface-dim: #18120e;
+  --surface-bright: #3f3833;
+  --surface-low: #211a16;
+  --surface-container: #251e1a;
+  --surface-high: #302924;
+  --surface-highest: #3b332f;
+  --on-surface: #ede0d9;
+  --on-surface-variant: #dfbfbc;
+  --outline: #a68a87;
+  --outline-variant: #58413f;
+  --primary: #ffb3ad;
+  --on-primary: #680109;
+  --primary-container: #8b1e1e;
+  --secondary: #adcfb3;
+  --tertiary: #eebd8e;
+  --tertiary-container: #63411c;
+  --bronze: #c9a84c;
+  --bronze-dim: #a07830;
+  --parchment: #e8dcc4;
+  --parchment-dim: #c9b89a;
+  --ink: #1a1008;
+
+  --cols: 5;
+  --cols-extra: 6;
+}

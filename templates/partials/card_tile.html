@@ -1,0 +1,75 @@
+{% set cs = card.clan | clan_style %}
+{% set tc = type_colors.get(card.type, '#c9a84c') %}
+<div class="card-tile"
+     style="--clan-border:{{ cs.border }};--clan-glow:{{ cs.glow }}"
+     hx-get="/cards/{{ card.title | urlencode }}/detail"
+     hx-target="#modal-container"
+     hx-swap="innerHTML">
+
+  <div class="card-ring"></div>
+
+  <!-- Art area -->
+  <div class="card-art">
+    {% if card.type == 'Personality' %}
+      {% set light = card.title | card_light %}
+      <img src="/static/assets/card-art-personality.png"
+           alt="{{ card.title }}"
+           style="filter:{{ light.filter }};object-position:{{ light.object_position }}">
+      <div class="card-art-vignette"></div>
+    {% else %}
+      <div class="card-art-placeholder"></div>
+      <span class="card-art-placeholder-label">{{ card.type }}<br>{{ card.clan }}</span>
+    {% endif %}
+
+    <div class="type-badge-wrap">
+      <span class="type-badge" style="background:{{ tc }}">{{ card.type }}</span>
+    </div>
+
+    {% if card.cost > 0 %}
+    <div class="cost-gem">{{ card.cost }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Name ribbon -->
+  <div class="card-name-ribbon">
+    <div class="card-title">{{ card.title }}</div>
+    <div class="clan-badge">{{ card.clan }}</div>
+  </div>
+
+  <!-- Stats row -->
+  <div class="card-stats">
+    {% if card.type == 'Personality' %}
+      <div class="stat-pip" style="--pip-color:#ffb3ad">
+        <span class="pip-value">{{ card.force }}</span>
+        <span class="pip-label">F</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-pip" style="--pip-color:#adcfb3">
+        <span class="pip-value">{{ card.chi }}</span>
+        <span class="pip-label">C</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-pip" style="--pip-color:#eebd8e">
+        <span class="pip-value">{{ card.ph }}</span>
+        <span class="pip-label">PH</span>
+      </div>
+    {% elif card.type == 'Stronghold' %}
+      <div class="stat-pip" style="--pip-color:#c9a84c">
+        <span class="pip-value">{{ card.startinghonor }}</span>
+        <span class="pip-label">Honor</span>
+      </div>
+    {% elif card.text %}
+      <span class="card-text-preview">{{ card.text[:60] }}…</span>
+    {% endif %}
+  </div>
+
+  <!-- Keyword chips -->
+  {% if card.keywords %}
+  <div class="keyword-chips">
+    {% for kw in card.keywords.split() %}
+    <span class="keyword-chip">{{ kw }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>

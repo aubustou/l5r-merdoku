@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+.git/
+merdoku.db
+test_merdoku.db
+.env

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Running the App
 
 ```bash
-# Install dependencies (requires Python 3.11+)
+# Install dependencies (requires Python 3.14+)
 pip install -e .
 
 # Seed the database with the sample Scorpion Clan deck
@@ -17,7 +17,16 @@ uvicorn app.main:app --reload
 
 The app runs at `http://localhost:8000`. The SQLite database (`merdoku.db`) is created automatically on first startup via `Base.metadata.create_all`.
 
-The `ANTHROPIC_API_KEY` environment variable must be set for the Oracle AI fallback to work.
+The `ANTHROPIC_API_KEY` environment variable is optional; the Oracle AI fallback is disabled when it is not set.
+
+## Running with Docker
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...     # optional
+docker compose up --build
+```
+
+The SQLite database is stored in a named volume (`db-data`). Override the path via `DATABASE_URL` (e.g. `sqlite:///data/merdoku.db`). The `app/database.py` module reads this variable at startup.
 
 ## Running Tests
 

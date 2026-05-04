@@ -4,19 +4,30 @@ A deck browser for the Legend of the Five Rings Collectible Card Game. Browse, f
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.14+
 - `ANTHROPIC_API_KEY` environment variable (optional — enables Oracle AI fallback)
 
 ## Setup
 
+### Local
+
 ```bash
-pip install -e .                        # requires Python 3.11+
+pip install -e .                        # requires Python 3.14+
 python -m app.seed                      # load sample Scorpion Clan deck
 export ANTHROPIC_API_KEY=sk-ant-...     # optional — enables Oracle AI fallback
 uvicorn app.main:app --reload
 ```
 
 App runs at **http://localhost:8000**. The SQLite database (`merdoku.db`) is created automatically on first startup.
+
+### Docker
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...     # optional
+docker compose up --build
+```
+
+The database is stored in a named Docker volume (`db-data`) so it persists across restarts. The `DATABASE_URL` env var can be overridden to point at a different SQLite path.
 
 ## Features
 
@@ -35,6 +46,7 @@ App runs at **http://localhost:8000**. The SQLite database (`merdoku.db`) is cre
 | Backend | FastAPI + SQLAlchemy (SQLite) |
 | Templates | Jinja2 + HTMX |
 | AI fallback | Anthropic Claude (`claude-opus-4-5`) |
+| Container | Docker + Compose |
 
 ## Project layout
 
@@ -45,6 +57,8 @@ App runs at **http://localhost:8000**. The SQLite database (`merdoku.db`) is cre
 | `static/` | CSS and JS assets (HTMX bundled locally) |
 | `tests/` | Playwright end-to-end test suite |
 | `Merdoku.html` | Standalone React prototype (no build step) |
+| `Dockerfile` | Container image definition (Python 3.14) |
+| `docker-compose.yml` | Local container orchestration |
 
 ## Running Tests
 
